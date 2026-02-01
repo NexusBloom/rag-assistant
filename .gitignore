@@ -1,0 +1,14 @@
+﻿venv/
+__pycache__/
+*.pyc
+.env
+vectorstore/
+data/*.pdf
+data/*.txt
+data/*.md
+!data/default_ai_knowledge.txt
+.DS_Store
+.streamlit/
+__pycache__/
+*.log
+.git/
