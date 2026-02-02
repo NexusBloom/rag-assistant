@@ -1,10 +1,9 @@
 import streamlit as st
 import os
 from pathlib import Path
-import pickle
 import hashlib
 
-# MUST BE FIRST - Page Configuration
+# Page Configuration
 st.set_page_config(
     page_title="NexusBloom CS Assistant",
     page_icon="N",
@@ -12,7 +11,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# CSS - Minimal for speed
+# Minimal CSS
 st.markdown("""
 <style>
 .hero { text-align: center; padding: 2rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 15px; margin-bottom: 2rem; }
@@ -27,7 +26,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Hero Section
+# Hero
 st.markdown("""
 <div class="hero">
     <h1>NexusBloom CS Assistant</h1>
@@ -62,32 +61,37 @@ try:
         st.error("API Key not configured")
         st.stop()
     
-    # OPTIMIZATION: Cache vectorstore to disk, not just memory
+    # Use FAISS native save/load instead of pickle
     @st.cache_resource(show_spinner=False)
     def get_vectorstore():
-        cache_file = Path("./vectorstore/vs_cache.pkl")
+        cache_dir = Path("./vectorstore_cache")
+        cache_dir.mkdir(exist_ok=True)
+        
+        hash_file = cache_dir / "data.hash"
+        faiss_file = cache_dir / "index.faiss"
         data_file = Path("./data/default_ai_knowledge.txt")
         
-        # Check if we have a cached version and data hasn't changed
-        if cache_file.exists():
-            try:
-                with open(cache_file, 'rb') as f:
-                    cached_data = pickle.load(f)
-                    # Verify data hash matches
-                    current_hash = hashlib.md5(data_file.read_bytes()).hexdigest()
-                    if cached_data.get('hash') == current_hash:
-                        st.success("Loaded from cache!")
-                        return cached_data['vectorstore']
-            except:
-                pass
+        # Calculate current hash
+        current_hash = hashlib.md5(data_file.read_bytes()).hexdigest()
         
-        # Create new vectorstore
+        # Check if cache exists and matches
+        if hash_file.exists() and faiss_file.exists():
+            cached_hash = hash_file.read_text().strip()
+            if cached_hash == current_hash:
+                st.success("Loaded from cache!")
+                embeddings = OpenAIEmbeddings(
+                    openai_api_key=API_KEY,
+                    base_url="https://openrouter.ai/api/v1",
+                    model="text-embedding-ada-002"
+                )
+                return FAISS.load_local(str(cache_dir), embeddings, allow_dangerous_deserialization=True)
+        
+        # Build new vectorstore
         with st.spinner("Building knowledge base (one-time)..."):
             embeddings = OpenAIEmbeddings(
                 openai_api_key=API_KEY,
                 base_url="https://openrouter.ai/api/v1",
-                model="text-embedding-ada-002",
-                chunk_size=1000  # Smaller chunks for faster processing
+                model="text-embedding-ada-002"
             )
             
             texts = []
@@ -97,17 +101,12 @@ try:
             docs = [Document(page_content=t) for t in texts]
             vs = FAISS.from_documents(docs, embeddings)
             
-            # Save to cache
-            cache_file.parent.mkdir(exist_ok=True)
-            with open(cache_file, 'wb') as f:
-                pickle.dump({
-                    'hash': hashlib.md5(data_file.read_bytes()).hexdigest(),
-                    'vectorstore': vs
-                }, f)
+            # Save using FAISS native method
+            vs.save_local(str(cache_dir))
+            hash_file.write_text(current_hash)
             
             return vs
     
-    # Load with progress
     vectorstore = get_vectorstore()
     st.markdown('<div class="chat-box">', unsafe_allow_html=True)
     st.markdown('<p class="status">Online - Ready</p>', unsafe_allow_html=True)
@@ -127,16 +126,15 @@ try:
         
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
-                # Faster retrieval - fewer docs, smaller chunks
                 docs = vectorstore.similarity_search(q, k=2)
-                ctx = "\n".join([d.page_content[:500] for d in docs])  # Shorter context
+                ctx = "\n".join([d.page_content[:500] for d in docs])
                 
                 llm = ChatOpenAI(
                     model="gpt-3.5-turbo",
                     openai_api_key=API_KEY,
                     base_url="https://openrouter.ai/api/v1",
                     temperature=0.7,
-                    max_tokens=500  # Limit response length for speed
+                    max_tokens=500
                 )
                 
                 resp = llm.invoke(f"Context: {ctx}\n\nQ: {q}\nA:")
@@ -149,3 +147,5 @@ try:
 
 except Exception as e:
     st.error(f"Error: {e}")
+    import traceback
+    st.code(traceback.format_exc())
