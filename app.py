@@ -1,7 +1,6 @@
 import streamlit as st
 import os
 from pathlib import Path
-import time
 
 # Page Configuration
 st.set_page_config(
@@ -11,7 +10,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Custom CSS for Professional UI
+# Custom CSS - ASCII only
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
@@ -234,34 +233,13 @@ st.markdown("""
         font-weight: 600;
         margin-right: 0.5rem;
     }
-    
-    .loading-spinner {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.5rem;
-        color: #667eea;
-        font-weight: 500;
-    }
-    
-    .thinking-dots::after {
-        content: '';
-        animation: dots 1.5s steps(5, end) infinite;
-    }
-    
-    @keyframes dots {
-        0%, 20% { content: ''; }
-        40% { content: '.'; }
-        60% { content: '..'; }
-        80%, 100% { content: '...'; }
-    }
 </style>
 """, unsafe_allow_html=True)
 
 # Hero Section
 st.markdown("""
 <div class="hero-container">
-    <h1 class="hero-title">?? NexusBloom CS Assistant</h1>
+    <h1 class="hero-title">NexusBloom CS Assistant</h1>
     <p class="hero-subtitle">Enterprise-Grade AI Knowledge Base for Computer Science Education</p>
     
     <div class="stats-container">
@@ -274,7 +252,7 @@ st.markdown("""
             <div class="stat-label">Knowledge Bytes</div>
         </div>
         <div class="stat-item">
-            <div class="stat-number">< 1s</div>
+            <div class="stat-number">&lt; 1s</div>
             <div class="stat-label">Response Time</div>
         </div>
         <div class="stat-item">
@@ -285,34 +263,34 @@ st.markdown("""
     
     <div class="feature-grid">
         <div class="feature-card">
-            <div class="feature-icon">???</div>
+            <div class="feature-icon">DS</div>
             <div class="feature-title">Data Structures</div>
-            <div class="feature-desc">Arrays, Linked Lists, Trees, Graphs, and advanced data organization paradigms</div>
+            <div class="feature-desc">Arrays, Linked Lists, Trees, Graphs, and advanced data organization</div>
         </div>
         <div class="feature-card">
-            <div class="feature-icon">?</div>
+            <div class="feature-icon">ALG</div>
             <div class="feature-title">Algorithms</div>
-            <div class="feature-desc">Sorting, Searching, Dynamic Programming, and optimization techniques</div>
+            <div class="feature-desc">Sorting, Searching, Dynamic Programming, optimization</div>
         </div>
         <div class="feature-card">
-            <div class="feature-icon">???</div>
+            <div class="feature-icon">OS</div>
             <div class="feature-title">Operating Systems</div>
-            <div class="feature-desc">Process management, Memory allocation, and System architecture</div>
+            <div class="feature-desc">Process management, Memory allocation, System architecture</div>
         </div>
         <div class="feature-card">
-            <div class="feature-icon">???</div>
+            <div class="feature-icon">DB</div>
             <div class="feature-title">Databases</div>
-            <div class="feature-desc">SQL, Normalization, and Database design principles</div>
+            <div class="feature-desc">SQL, Normalization, Database design principles</div>
         </div>
         <div class="feature-card">
-            <div class="feature-icon">??</div>
+            <div class="feature-icon">NET</div>
             <div class="feature-title">Networks</div>
-            <div class="feature-desc">TCP/IP, OSI Model, and Network protocols</div>
+            <div class="feature-desc">TCP/IP, OSI Model, Network protocols</div>
         </div>
         <div class="feature-card">
-            <div class="feature-icon">??</div>
-            <div class="feature-title">AI & ML</div>
-            <div class="feature-desc">Machine Learning, Neural Networks, and Deep Learning fundamentals</div>
+            <div class="feature-icon">AI</div>
+            <div class="feature-title">AI and ML</div>
+            <div class="feature-desc">Machine Learning, Neural Networks, Deep Learning</div>
         </div>
     </div>
 </div>
@@ -329,13 +307,12 @@ try:
     if not API_KEY:
         st.markdown("""
         <div class="hero-container" style="border-left: 5px solid #ef4444;">
-            <h3>?? Configuration Required</h3>
-            <p>Please set the <code>OPENAI_API_KEY</code> in Streamlit Secrets to activate the AI engine.</p>
+            <h3>Configuration Required</h3>
+            <p>Please set the OPENAI_API_KEY in Streamlit Secrets.</p>
         </div>
         """, unsafe_allow_html=True)
         st.stop()
     
-    # Initialize with loading animation
     @st.cache_resource(show_spinner=False)
     def initialize_engine():
         embeddings = OpenAIEmbeddings(
@@ -352,50 +329,41 @@ try:
         docs = [Document(page_content=t) for t in texts]
         return FAISS.from_documents(docs, embeddings)
     
-    # Load engine
-    with st.spinner("?? Initializing AI Engine..."):
+    with st.spinner("Initializing AI Engine..."):
         vectorstore = initialize_engine()
     
-    # Chat Interface
     st.markdown("""
     <div class="hero-container chat-container">
         <div class="chat-header">
-            <div class="chat-avatar">??</div>
+            <div class="chat-avatar">AI</div>
             <div>
                 <div class="chat-title">CS Knowledge Assistant</div>
                 <div class="chat-status">
                     <div class="status-dot"></div>
-                    <span>Online • Ready to assist</span>
+                    <span>Online - Ready to assist</span>
                 </div>
             </div>
         </div>
     """, unsafe_allow_html=True)
     
-    # Chat history
     if "messages" not in st.session_state:
         st.session_state.messages = []
     
-    # Display previous messages
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
     
-    # Input
     if prompt := st.chat_input("Ask about any Computer Science topic..."):
-        # Add user message
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
-            st.markdown(f"**You:** {prompt}")
+            st.markdown(f"You: {prompt}")
         
-        # Generate response
         with st.chat_message("assistant"):
-            with st.spinner("?? Analyzing knowledge base..."):
+            with st.spinner("Analyzing knowledge base..."):
                 try:
-                    # Retrieve context
                     docs = vectorstore.similarity_search(prompt, k=3)
                     context = "\n\n".join([d.page_content[:1000] for d in docs])
                     
-                    # Generate answer
                     llm = ChatOpenAI(
                         model="gpt-3.5-turbo",
                         openai_api_key=API_KEY,
@@ -404,7 +372,7 @@ try:
                     )
                     
                     system_prompt = f"""You are an expert Computer Science educator. 
-Use the provided context to give a comprehensive, accurate answer.
+Use the provided context to give a comprehensive answer.
 If the context doesn't contain enough information, say so clearly.
 
 Context:
@@ -412,16 +380,14 @@ Context:
 
 Question: {prompt}
 
-Provide a well-structured answer with examples where applicable."""
+Provide a well-structured answer."""
                     
                     response = llm.invoke(system_prompt)
                     answer = response.content
                     
-                    # Display formatted response
                     st.markdown(f"""
                     <div class="response-box">
                         <div class="response-header">
-                            <span>??</span>
                             <span>Expert Answer</span>
                         </div>
                         <div style="line-height: 1.8; color: #333;">
@@ -433,22 +399,21 @@ Provide a well-structured answer with examples where applicable."""
                     st.session_state.messages.append({"role": "assistant", "content": answer})
                     
                 except Exception as e:
-                    st.error(f"? Error generating response: {str(e)}")
+                    st.error(f"Error: {str(e)}")
     
     st.markdown("</div>", unsafe_allow_html=True)
 
 except Exception as e:
     st.markdown(f"""
     <div class="hero-container" style="border-left: 5px solid #ef4444;">
-        <h3>?? System Error</h3>
+        <h3>System Error</h3>
         <p>{str(e)}</p>
     </div>
     """, unsafe_allow_html=True)
 
-# Footer
 st.markdown("""
 <div class="footer">
-    <p>?? Powered by <span class="badge">LangChain</span> <span class="badge">OpenRouter</span> <span class="badge">FAISS</span></p>
-    <p style="margin-top: 1rem; color: #999;">© 2026 NexusBloom Technologies. Built for excellence in CS education.</p>
+    <p>Powered by <span class="badge">LangChain</span> <span class="badge">OpenRouter</span> <span class="badge">FAISS</span></p>
+    <p style="margin-top: 1rem; color: #999;">2026 NexusBloom Technologies. Built for CS education.</p>
 </div>
 """, unsafe_allow_html=True)
