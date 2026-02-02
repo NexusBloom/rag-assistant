@@ -13,14 +13,14 @@ class RAGAssistant:
     def __init__(self):
         self.vector_manager = VectorStoreManager()
         
-        # Use OpenRouter (OpenAI compatible)
+        # Use OpenRouter (OpenAI compatible API)
         self.llm = ChatOpenAI(
             model=config.llm_model,
             temperature=config.temperature,
-            api_key=config.openrouter_api_key,
+            api_key=config.openrouter_api_key,  # Use api_key parameter
             base_url="https://openrouter.ai/api/v1",
             default_headers={
-                "HTTP-Referer": "http://localhost:8501",
+                "HTTP-Referer": "https://rag-assistant.onrender.com",
                 "X-Title": "RAG Assistant"
             }
         )

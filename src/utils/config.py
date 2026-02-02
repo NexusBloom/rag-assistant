@@ -7,12 +7,9 @@ load_dotenv()
 
 @dataclass
 class Config:
-    openrouter_api_key: str = os.getenv("OPENROUTER_API_KEY", "")
-    # Try these working models (check https://openrouter.ai/models for availability):
-    llm_model: str = "mistralai/mixtral-8x7b-instruct"  # Popular, cheap
-    # Alternatives if above fails:
-    # llm_model: str = "meta-llama/llama-3-8b-instruct"
-    # llm_model: str = "google/gemini-pro" 
+    # Use OPENROUTER_API_KEY from environment
+    openrouter_api_key: str = os.getenv("OPENROUTER_API_KEY", os.getenv("OPENAI_API_KEY", ""))
+    llm_model: str = "google/gemini-flash-1.5"
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
     temperature: float = 0.0
     vector_store_path: str = "./vectorstore"
