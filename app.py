@@ -40,7 +40,7 @@ try:
             if f.is_file():
                 st.write(f"File: {f.name}, Size: {f.stat().st_size} bytes")
                 try:
-                    content = f.read_text(encoding='utf-8')
+                    content = f.read_text(encoding='utf-8', errors='ignore')
                     st.success(f"? Read {f.name}: {len(content)} chars")
                 except Exception as e:
                     st.error(f"? Error reading {f.name}: {e}")
@@ -60,7 +60,7 @@ try:
             if data_dir.exists():
                 for f in data_dir.glob("*.txt"):
                     try:
-                        texts.append(f.read_text(encoding='utf-8'))
+                        texts.append(f.read_text(encoding='utf-8', errors='ignore'))
                     except:
                         pass
             if texts:
