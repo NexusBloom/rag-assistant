@@ -20,8 +20,12 @@ try:
     
     st.success("? All dependencies loaded!")
     
-    # API Key
-    API_KEY = os.getenv("OPENROUTER_API_KEY", "")
+    # API Key - Read from environment variable
+    API_KEY = os.getenv("OPENROUTER_API_KEY")
+    
+    if not API_KEY:
+        st.error("? OPENROUTER_API_KEY environment variable not set!")
+        st.stop()
     
     # Simple RAG class (no external files)
     class SimpleRAG:
@@ -49,10 +53,8 @@ try:
         def create_index(self, texts, source="upload"):
             documents = [Document(page_content=t, metadata={"source": source}) for t in texts]
             if self.vectorstore:
-                # Add to existing index
                 self.vectorstore.add_documents(documents)
             else:
-                # Create new index
                 self.vectorstore = FAISS.from_documents(documents, self.embeddings)
             self.vectorstore.save_local(str(self.store_path))
             return True
@@ -116,8 +118,8 @@ Answer this question: {question}"""
     
     # Load built-in documents on startup
     with st.spinner("?? Loading knowledge base..."):
-        if not rag.load_index():  # No existing index
-            rag.load_builtin_documents()  # Load from data folder
+        if not rag.load_index():
+            rag.load_builtin_documents()
     
     # Sidebar
     with st.sidebar:
@@ -127,12 +129,10 @@ Answer this question: {question}"""
         if file:
             with st.spinner("Processing..."):
                 try:
-                    # Save file
                     save_path = f"./uploaded_{file.name}"
                     with open(save_path, "wb") as f:
                         f.write(file.getvalue())
                     
-                    # Load based on type
                     if file.name.endswith(".pdf"):
                         from langchain_community.document_loaders import PyPDFLoader
                         loader = PyPDFLoader(save_path)
@@ -142,7 +142,6 @@ Answer this question: {question}"""
                         text = file.getvalue().decode("utf-8")
                         texts = [text]
                     
-                    # Create index
                     rag.create_index(texts)
                     st.success("? Document indexed!")
                 except Exception as e:
