@@ -1,10 +1,10 @@
-﻿import streamlit as st
+import streamlit as st
 import os
 from pathlib import Path
 
 # Page setup
 st.set_page_config(page_title="RAG Assistant", layout="wide")
-st.title("📚 RAG Assistant")
+st.title("?? RAG Assistant")
 
 # Check if we can load dependencies
 st.info("Loading system...")
@@ -18,7 +18,7 @@ try:
     from langchain.schema import Document
     from langchain_community.document_loaders import TextLoader, PyPDFLoader
     
-    st.success("✅ All dependencies loaded!")
+    st.success("? All dependencies loaded!")
     
     # API Key
     API_KEY = "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"
@@ -46,16 +46,49 @@ try:
             except:
                 return False
         
-        def create_index(self, texts):
-            documents = [Document(page_content=t, metadata={"source": "upload"}) for t in texts]
-            self.vectorstore = FAISS.from_documents(documents, self.embeddings)
+        def create_index(self, texts, source="upload"):
+            documents = [Document(page_content=t, metadata={"source": source}) for t in texts]
+            if self.vectorstore:
+                # Add to existing index
+                self.vectorstore.add_documents(documents)
+            else:
+                # Create new index
+                self.vectorstore = FAISS.from_documents(documents, self.embeddings)
             self.vectorstore.save_local(str(self.store_path))
             return True
+        
+        def load_builtin_documents(self):
+            """Load documents from data folder on startup"""
+            base_dir = Path(__file__).parent
+            data_dir = base_dir / "data"
+            
+            if not data_dir.exists():
+                st.warning("?? No data folder found")
+                return False
+            
+            all_texts = []
+            loaded_files = []
+            
+            for file_path in data_dir.glob("*.txt"):
+                try:
+                    loader = TextLoader(str(file_path), encoding='utf-8')
+                    docs = loader.load()
+                    texts = [d.page_content for d in docs]
+                    all_texts.extend(texts)
+                    loaded_files.append(file_path.name)
+                except Exception as e:
+                    st.warning(f"Could not load {file_path.name}: {e}")
+            
+            if all_texts:
+                self.create_index(all_texts, source="builtin")
+                st.success(f"?? Loaded built-in knowledge: {', '.join(loaded_files)}")
+                return True
+            return False
         
         def query(self, question):
             if not self.vectorstore:
                 if not self.load_index():
-                    return "Please upload documents first!"
+                    return "Please upload documents first! No built-in knowledge loaded."
             
             docs = self.vectorstore.similarity_search(question, k=3)
             context = "\n\n".join([d.page_content for d in docs])
@@ -81,9 +114,14 @@ Answer this question: {question}"""
     # Initialize
     rag = SimpleRAG()
     
+    # Load built-in documents on startup
+    with st.spinner("?? Loading knowledge base..."):
+        if not rag.load_index():  # No existing index
+            rag.load_builtin_documents()  # Load from data folder
+    
     # Sidebar
     with st.sidebar:
-        st.header("📁 Upload")
+        st.header("?? Upload")
         file = st.file_uploader("Choose file", type=["txt", "pdf"])
         
         if file:
@@ -106,12 +144,12 @@ Answer this question: {question}"""
                     
                     # Create index
                     rag.create_index(texts)
-                    st.success("✅ Document indexed!")
+                    st.success("? Document indexed!")
                 except Exception as e:
                     st.error(f"Error: {e}")
     
     # Chat
-    st.subheader("💬 Chat")
+    st.subheader("?? Chat")
     question = st.text_input("Ask about your document:")
     
     if question:
@@ -124,7 +162,7 @@ Answer this question: {question}"""
                 st.code(str(e))
 
 except Exception as e:
-    st.error(f"❌ System Error: {e}")
+    st.error(f"? System Error: {e}")
     st.code(str(e))
     import traceback
     st.code(traceback.format_exc())
