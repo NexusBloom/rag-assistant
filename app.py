@@ -20,11 +20,11 @@ try:
     
     st.success("? All dependencies loaded!")
     
-    # API Key - Read from environment variable
-    API_KEY = os.getenv("OPENROUTER_API_KEY")
+    # API Key - Read from environment variable OPENAI_API_KEY
+    API_KEY = os.getenv("OPENAI_API_KEY")
     
     if not API_KEY:
-        st.error("? OPENROUTER_API_KEY environment variable not set!")
+        st.error("? OPENAI_API_KEY environment variable not set!")
         st.stop()
     
     # Simple RAG class (no external files)
