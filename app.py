@@ -1,173 +1,98 @@
 import streamlit as st
 import os
 from pathlib import Path
+import sys
 
-# Page setup
 st.set_page_config(page_title="RAG Assistant", layout="wide")
 st.title("?? RAG Assistant")
 
-# Check if we can load dependencies
-st.info("Loading system...")
+# DEBUG: Show system info
+st.subheader("Debug Info")
+st.write(f"Python version: {sys.version}")
+st.write(f"Current directory: {os.getcwd()}")
+st.write(f"File location: {__file__}")
 
 try:
-    # Imports
     from langchain_openai import ChatOpenAI, OpenAIEmbeddings
     from langchain_community.vectorstores import FAISS
-    from langchain_text_splitters import RecursiveCharacterTextSplitter
     from langchain.schema import Document
-    from langchain_community.document_loaders import TextLoader, PyPDFLoader
     
-    st.success("? All dependencies loaded!")
-    
-    # API Key - Read from environment variable OPENAI_API_KEY
     API_KEY = os.getenv("OPENAI_API_KEY")
+    st.write(f"API Key exists: {bool(API_KEY)}")
     
     if not API_KEY:
-        st.error("? OPENAI_API_KEY environment variable not set!")
+        st.error("? OPENAI_API_KEY not set!")
         st.stop()
     
-    # Simple RAG class (no external files)
+    # Check data folder
+    base_dir = Path(__file__).parent
+    data_dir = base_dir / "data"
+    
+    st.write(f"Base dir: {base_dir}")
+    st.write(f"Data dir: {data_dir}")
+    st.write(f"Data dir exists: {data_dir.exists()}")
+    
+    if data_dir.exists():
+        files = list(data_dir.iterdir())
+        st.write(f"Files in data dir: {[str(f) for f in files]}")
+        
+        for f in files:
+            if f.is_file():
+                st.write(f"File: {f.name}, Size: {f.stat().st_size} bytes")
+                try:
+                    content = f.read_text(encoding='utf-8')
+                    st.success(f"? Read {f.name}: {len(content)} chars")
+                except Exception as e:
+                    st.error(f"? Error reading {f.name}: {e}")
+    
+    # Simple RAG
     class SimpleRAG:
         def __init__(self):
-            # Use OpenAI embeddings instead of HuggingFace to avoid PyTorch issues
             self.embeddings = OpenAIEmbeddings(
                 openai_api_key=API_KEY,
                 base_url="https://openrouter.ai/api/v1",
                 model="text-embedding-ada-002"
             )
-            self.store_path = Path("./vectorstore")
-            self.store_path.mkdir(exist_ok=True)
             self.vectorstore = None
             
-        def load_index(self):
-            try:
-                if not (self.store_path / "index.faiss").exists():
-                    return False
-                self.vectorstore = FAISS.load_local(
-                    str(self.store_path), 
-                    self.embeddings,
-                    allow_dangerous_deserialization=True
-                )
-                return True
-            except Exception as e:
-                st.warning(f"Could not load existing index: {e}")
-                return False
-        
-        def create_index(self, texts, source="upload"):
-            documents = [Document(page_content=t, metadata={"source": source}) for t in texts]
-            if self.vectorstore:
-                self.vectorstore.add_documents(documents)
-            else:
-                self.vectorstore = FAISS.from_documents(documents, self.embeddings)
-            self.vectorstore.save_local(str(self.store_path))
-            return True
-        
-        def load_builtin_documents(self):
-            """Load documents from data folder on startup"""
-            base_dir = Path(__file__).parent
-            data_dir = base_dir / "data"
-            
-            if not data_dir.exists():
-                st.warning("?? No data folder found")
-                return False
-            
-            all_texts = []
-            loaded_files = []
-            
-            for file_path in data_dir.glob("*.txt"):
-                try:
-                    loader = TextLoader(str(file_path), encoding='utf-8')
-                    docs = loader.load()
-                    texts = [d.page_content for d in docs]
-                    all_texts.extend(texts)
-                    loaded_files.append(file_path.name)
-                except Exception as e:
-                    st.warning(f"Could not load {file_path.name}: {e}")
-            
-            if all_texts:
-                self.create_index(all_texts, source="builtin")
-                st.success(f"?? Loaded built-in knowledge: {', '.join(loaded_files)}")
+        def load_builtin(self):
+            texts = []
+            if data_dir.exists():
+                for f in data_dir.glob("*.txt"):
+                    try:
+                        texts.append(f.read_text(encoding='utf-8'))
+                    except:
+                        pass
+            if texts:
+                docs = [Document(page_content=t) for t in texts]
+                self.vectorstore = FAISS.from_documents(docs, self.embeddings)
                 return True
             return False
         
-        def query(self, question):
+        def query(self, q):
             if not self.vectorstore:
-                if not self.load_index():
-                    return "Please upload documents first! No built-in knowledge loaded."
-            
-            docs = self.vectorstore.similarity_search(question, k=3)
-            context = "\n\n".join([d.page_content for d in docs])
+                return "No documents"
+            docs = self.vectorstore.similarity_search(q, k=2)
+            context = "\n".join([d.page_content[:500] for d in docs])
             
             llm = ChatOpenAI(
                 model="google/gemini-flash-1.5",
                 openai_api_key=API_KEY,
-                base_url="https://openrouter.ai/api/v1",
-                default_headers={
-                    "HTTP-Referer": "https://rag-assistant.onrender.com",
-                    "X-Title": "RAG Assistant"
-                }
+                base_url="https://openrouter.ai/api/v1"
             )
-            
-            prompt = f"""Based on this context:
-{context}
-
-Answer this question: {question}"""
-            
-            response = llm.invoke(prompt)
-            return response.content
+            return llm.invoke(f"Context: {context}\n\nQuestion: {q}").content
     
-    # Initialize
     rag = SimpleRAG()
-    
-    # Load built-in documents on startup
-    with st.spinner("?? Loading knowledge base..."):
-        if not rag.load_index():
-            rag.load_builtin_documents()
-    
-    # Sidebar
-    with st.sidebar:
-        st.header("?? Upload")
-        file = st.file_uploader("Choose file", type=["txt", "pdf"])
+    if rag.load_builtin():
+        st.success("? Knowledge loaded!")
         
-        if file:
-            with st.spinner("Processing..."):
-                try:
-                    save_path = f"./uploaded_{file.name}"
-                    with open(save_path, "wb") as f:
-                        f.write(file.getvalue())
-                    
-                    if file.name.endswith(".pdf"):
-                        from langchain_community.document_loaders import PyPDFLoader
-                        loader = PyPDFLoader(save_path)
-                        docs = loader.load()
-                        texts = [d.page_content for d in docs]
-                    else:
-                        text = file.getvalue().decode("utf-8")
-                        texts = [text]
-                    
-                    rag.create_index(texts)
-                    st.success("? Document indexed!")
-                except Exception as e:
-                    st.error(f"Error: {e}")
-    
-    # Chat
-    st.subheader("?? Chat")
-    question = st.text_input("Ask about your document:")
-    
-    if question:
-        with st.spinner("Thinking..."):
-            try:
-                answer = rag.query(question)
-                st.markdown(f"**Answer:** {answer}")
-            except Exception as e:
-                st.error(f"Error: {e}")
-                st.code(str(e))
+        q = st.text_input("Ask about CS:")
+        if q:
+            st.write(rag.query(q))
+    else:
+        st.error("Failed to load knowledge")
 
 except Exception as e:
-    st.error(f"? System Error: {e}")
-    st.code(str(e))
+    st.error(f"Error: {e}")
     import traceback
     st.code(traceback.format_exc())
-
-
-# Force redeploy 02/02/2026 05:44:38
