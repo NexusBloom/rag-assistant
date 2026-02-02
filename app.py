@@ -30,8 +30,20 @@ try:
     # Simple RAG class (no external files)
     class SimpleRAG:
         def __init__(self):
+            # Force CPU and disable problematic optimizations
+            import torch
+            torch.set_num_threads(1)  # Limit CPU threads
+            
             self.embeddings = HuggingFaceEmbeddings(
-                model_name="sentence-transformers/all-MiniLM-L6-v2"
+                model_name="sentence-transformers/all-MiniLM-L6-v2",
+                model_kwargs={
+                    'device': 'cpu',  # Force CPU
+                    'trust_remote_code': False
+                },
+                encode_kwargs={
+                    'normalize_embeddings': True,
+                    'batch_size': 1  # Small batch size for limited memory
+                }
             )
             self.store_path = Path("./vectorstore")
             self.store_path.mkdir(exist_ok=True)
@@ -47,7 +59,8 @@ try:
                     allow_dangerous_deserialization=True
                 )
                 return True
-            except:
+            except Exception as e:
+                st.warning(f"Could not load existing index: {e}")
                 return False
         
         def create_index(self, texts, source="upload"):
