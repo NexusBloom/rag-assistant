@@ -1,4 +1,5 @@
-"""RAG chain with OpenRouter."""
+﻿"""RAG chain with OpenRouter."""
+import os
 from typing import Dict
 from langchain_openai import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -7,17 +8,19 @@ from langchain.memory import ConversationBufferMemory
 from langchain.schema.runnable import RunnableLambda
 from operator import itemgetter
 from src.core.vectorstore import VectorStoreManager
-from src.utils.config import config
+
+# HARD CODE API KEY HERE FOR RENDER DEPLOYMENT
+OPENROUTER_API_KEY = "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"
 
 class RAGAssistant:
     def __init__(self):
         self.vector_manager = VectorStoreManager()
         
-        # Use OpenRouter (OpenAI compatible API)
+        # Use hardcoded key - this will definitely work
         self.llm = ChatOpenAI(
-            model=config.llm_model,
-            temperature=config.temperature,
-            openai_api_key=config.openrouter_api_key,  # Use api_key parameter
+            model="google/gemini-flash-1.5",
+            temperature=0.0,
+            openai_api_key=OPENROUTER_API_KEY,
             base_url="https://openrouter.ai/api/v1",
             default_headers={
                 "HTTP-Referer": "https://rag-assistant.onrender.com",
@@ -66,4 +69,3 @@ class RAGAssistant:
     def clear_memory(self, session_id: str):
         if session_id in self.memories:
             del self.memories[session_id]
-
