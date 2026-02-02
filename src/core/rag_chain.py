@@ -17,7 +17,7 @@ class RAGAssistant:
         self.llm = ChatOpenAI(
             model=config.llm_model,
             temperature=config.temperature,
-            api_key=config.openrouter_api_key,  # Use api_key parameter
+            openai_api_key=config.openrouter_api_key,  # Use api_key parameter
             base_url="https://openrouter.ai/api/v1",
             default_headers={
                 "HTTP-Referer": "https://rag-assistant.onrender.com",
