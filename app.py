@@ -11,9 +11,8 @@ st.info("Loading system...")
 
 try:
     # Imports
-    from langchain_openai import ChatOpenAI
+    from langchain_openai import ChatOpenAI, OpenAIEmbeddings
     from langchain_community.vectorstores import FAISS
-    from langchain_community.embeddings import HuggingFaceEmbeddings
     from langchain_text_splitters import RecursiveCharacterTextSplitter
     from langchain.schema import Document
     from langchain_community.document_loaders import TextLoader, PyPDFLoader
@@ -30,20 +29,11 @@ try:
     # Simple RAG class (no external files)
     class SimpleRAG:
         def __init__(self):
-            # Force CPU and disable problematic optimizations
-            import torch
-            torch.set_num_threads(1)  # Limit CPU threads
-            
-            self.embeddings = HuggingFaceEmbeddings(
-                model_name="sentence-transformers/all-MiniLM-L6-v2",
-                model_kwargs={
-                    'device': 'cpu',  # Force CPU
-                    'trust_remote_code': False
-                },
-                encode_kwargs={
-                    'normalize_embeddings': True,
-                    'batch_size': 1  # Small batch size for limited memory
-                }
+            # Use OpenAI embeddings instead of HuggingFace to avoid PyTorch issues
+            self.embeddings = OpenAIEmbeddings(
+                openai_api_key=API_KEY,
+                base_url="https://openrouter.ai/api/v1",
+                model="text-embedding-ada-002"
             )
             self.store_path = Path("./vectorstore")
             self.store_path.mkdir(exist_ok=True)
