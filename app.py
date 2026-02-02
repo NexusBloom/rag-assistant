@@ -21,7 +21,7 @@ try:
     st.success("? All dependencies loaded!")
     
     # API Key
-    API_KEY = "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"
+    API_KEY = os.getenv("OPENROUTER_API_KEY", "")
     
     # Simple RAG class (no external files)
     class SimpleRAG:
