@@ -1,16 +1,11 @@
 import streamlit as st
 import os
 from pathlib import Path
-import sys
 
-st.set_page_config(page_title="RAG Assistant", layout="wide")
-st.title("?? RAG Assistant")
+st.set_page_config(page_title="CS RAG Assistant", page_icon="??", layout="wide")
 
-# DEBUG: Show system info
-st.subheader("Debug Info")
-st.write(f"Python version: {sys.version}")
-st.write(f"Current directory: {os.getcwd()}")
-st.write(f"File location: {__file__}")
+st.title("?? Computer Science RAG Assistant")
+st.markdown("Ask questions about Data Structures, Algorithms, OS, Databases, Networks, and AI!")
 
 try:
     from langchain_openai import ChatOpenAI, OpenAIEmbeddings
@@ -18,79 +13,63 @@ try:
     from langchain.schema import Document
     
     API_KEY = os.getenv("OPENAI_API_KEY")
-    st.write(f"API Key exists: {bool(API_KEY)}")
-    
     if not API_KEY:
-        st.error("? OPENAI_API_KEY not set!")
+        st.error("?? OPENAI_API_KEY not set!")
         st.stop()
     
-    # Check data folder
-    base_dir = Path(__file__).parent
-    data_dir = base_dir / "data"
-    
-    st.write(f"Base dir: {base_dir}")
-    st.write(f"Data dir: {data_dir}")
-    st.write(f"Data dir exists: {data_dir.exists()}")
-    
-    if data_dir.exists():
-        files = list(data_dir.iterdir())
-        st.write(f"Files in data dir: {[str(f) for f in files]}")
+    # Initialize
+    @st.cache_resource
+    def load_knowledge():
+        embeddings = OpenAIEmbeddings(
+            openai_api_key=API_KEY,
+            base_url="https://openrouter.ai/api/v1",
+            model="text-embedding-ada-002"
+        )
         
-        for f in files:
-            if f.is_file():
-                st.write(f"File: {f.name}, Size: {f.stat().st_size} bytes")
-                try:
-                    content = f.read_text(encoding='utf-8', errors='ignore')
-                    st.success(f"? Read {f.name}: {len(content)} chars")
-                except Exception as e:
-                    st.error(f"? Error reading {f.name}: {e}")
-    
-    # Simple RAG
-    class SimpleRAG:
-        def __init__(self):
-            self.embeddings = OpenAIEmbeddings(
-                openai_api_key=API_KEY,
-                base_url="https://openrouter.ai/api/v1",
-                model="text-embedding-ada-002"
-            )
-            self.vectorstore = None
-            
-        def load_builtin(self):
-            texts = []
-            if data_dir.exists():
-                for f in data_dir.glob("*.txt"):
-                    try:
-                        texts.append(f.read_text(encoding='utf-8', errors='ignore'))
-                    except:
-                        pass
-            if texts:
-                docs = [Document(page_content=t) for t in texts]
-                self.vectorstore = FAISS.from_documents(docs, self.embeddings)
-                return True
-            return False
+        data_dir = Path(__file__).parent / "data"
+        texts = []
+        for f in data_dir.glob("*.txt"):
+            texts.append(f.read_text(encoding='utf-8', errors='ignore'))
         
-        def query(self, q):
-            if not self.vectorstore:
-                return "No documents"
-            docs = self.vectorstore.similarity_search(q, k=2)
-            context = "\n".join([d.page_content[:500] for d in docs])
-            
-            llm = ChatOpenAI(
-                model="google/gemini-flash-1.5",
-                openai_api_key=API_KEY,
-                base_url="https://openrouter.ai/api/v1"
-            )
-            return llm.invoke(f"Context: {context}\n\nQuestion: {q}").content
+        if texts:
+            docs = [Document(page_content=t) for t in texts]
+            return FAISS.from_documents(docs, embeddings)
+        return None
     
-    rag = SimpleRAG()
-    if rag.load_builtin():
+    vectorstore = load_knowledge()
+    
+    if vectorstore:
         st.success("? Knowledge loaded!")
         
-        q = st.text_input("Ask about CS:")
-        if q:
-            st.write(rag.query(q))
+        question = st.text_input("Ask about Computer Science:", placeholder="e.g., What is a binary tree?")
+        
+        if question:
+            with st.spinner("?? Thinking..."):
+                # Retrieve
+                docs = vectorstore.similarity_search(question, k=3)
+                context = "\n\n".join([d.page_content[:800] for d in docs])
+                
+                # IMPORTANT: Use gpt-3.5-turbo, NOT google/gemini-flash-1.5
+                llm = ChatOpenAI(
+                    model="gpt-3.5-turbo",
+                    openai_api_key=API_KEY,
+                    base_url="https://openrouter.ai/api/v1",
+                    temperature=0.7
+                )
+                
+                prompt = f"""Answer this Computer Science question using the context.
+
+Context:
+{context}
+
+Question: {question}
+
+Answer:"""
+                
+                response = llm.invoke(prompt)
+                st.markdown(f"**Answer:** {response.content}")
     else:
-        st.error("Failed to load knowledge")
+        st.error("Failed to load knowledge base")
 
 except Exception as e:
     st.error(f"Error: {e}")
